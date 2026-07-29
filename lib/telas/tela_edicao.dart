@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../banco/banco_dados.dart';
 import '../modelos/pessoa.dart';
+import '../servicos/operador_service.dart';
 
 class TelaEdicao extends StatefulWidget {
   final Pessoa pessoa;
@@ -18,6 +19,7 @@ class _TelaEdicaoState extends State<TelaEdicao> {
   late final TextEditingController telefoneController;
   late final TextEditingController observacoesController;
   final alteradoPorController = TextEditingController();
+  final OperadorService operadorService = OperadorService.instancia;
 
   bool salvando = false;
 
@@ -34,7 +36,17 @@ class _TelaEdicaoState extends State<TelaEdicao> {
     observacoesController = TextEditingController(
       text: widget.pessoa.observacoes,
     );
+    carregarOperador();
   }
+  Future<void> carregarOperador() async {
+  final nomeOperador = await operadorService.carregarNome();
+
+  if (!mounted) return;
+
+  setState(() {
+    alteradoPorController.text = nomeOperador;
+  });
+}
 
   @override
   void dispose() {
