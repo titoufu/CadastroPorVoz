@@ -1,5 +1,9 @@
 class Pessoa {
   final int? id;
+
+  // Identificador único compartilhado entre os celulares.
+  final String uuid;
+
   final String nome;
   final String endereco;
   final String telefone;
@@ -11,6 +15,7 @@ class Pessoa {
 
   const Pessoa({
     this.id,
+    required this.uuid,
     required this.nome,
     required this.endereco,
     required this.telefone,
@@ -24,6 +29,7 @@ class Pessoa {
   Map<String, Object?> toMap() {
     return {
       'id': id,
+      'uuid': uuid,
       'nome': nome,
       'endereco': endereco,
       'telefone': telefone,
@@ -38,6 +44,7 @@ class Pessoa {
   factory Pessoa.fromMap(Map<String, Object?> map) {
     return Pessoa(
       id: map['id'] as int?,
+      uuid: map['uuid'] as String,
       nome: map['nome'] as String,
       endereco: map['endereco'] as String,
       telefone: map['telefone'] as String,

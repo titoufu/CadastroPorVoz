@@ -38,15 +38,16 @@ class _TelaEdicaoState extends State<TelaEdicao> {
     );
     carregarOperador();
   }
+
   Future<void> carregarOperador() async {
-  final nomeOperador = await operadorService.carregarNome();
+    final nomeOperador = await operadorService.carregarNome();
 
-  if (!mounted) return;
+    if (!mounted) return;
 
-  setState(() {
-    alteradoPorController.text = nomeOperador;
-  });
-}
+    setState(() {
+      alteradoPorController.text = nomeOperador;
+    });
+  }
 
   @override
   void dispose() {
@@ -79,6 +80,7 @@ class _TelaEdicaoState extends State<TelaEdicao> {
     try {
       final pessoaAtualizada = Pessoa(
         id: widget.pessoa.id,
+        uuid: widget.pessoa.uuid,
         nome: nome,
         endereco: enderecoController.text.trim(),
         telefone: telefoneController.text.trim(),

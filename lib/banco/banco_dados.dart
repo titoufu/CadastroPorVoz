@@ -1,5 +1,6 @@
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:uuid/uuid.dart';
 
 import '../modelos/pessoa.dart';
 
@@ -7,6 +8,8 @@ class BancoDados {
   BancoDados._();
 
   static final BancoDados instancia = BancoDados._();
+
+  static final Uuid _geradorUuid = Uuid();
 
   static Database? _banco;
 
@@ -23,11 +26,15 @@ class BancoDados {
 
     return openDatabase(
       caminhoBanco,
-      version: 1,
+
+      // Versão 2: acrescenta o UUID.
+      version: 2,
+
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE pessoas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            uuid TEXT NOT NULL,
             nome TEXT NOT NULL,
             endereco TEXT NOT NULL,
             telefone TEXT NOT NULL,
@@ -38,6 +45,44 @@ class BancoDados {
             alterado_por TEXT
           )
         ''');
+
+        await db.execute('''
+          CREATE UNIQUE INDEX idx_pessoas_uuid
+          ON pessoas(uuid)
+        ''');
+      },
+
+      onUpgrade: (db, versaoAntiga, versaoNova) async {
+        if (versaoAntiga < 2) {
+          // Acrescenta a coluna aos bancos já existentes.
+          await db.execute('''
+            ALTER TABLE pessoas
+            ADD COLUMN uuid TEXT NOT NULL DEFAULT ''
+          ''');
+
+          // Gera um UUID para cada cadastro antigo.
+          final registros = await db.query(
+            'pessoas',
+            columns: ['id'],
+          );
+
+          for (final registro in registros) {
+            final id = registro['id'] as int;
+
+            await db.update(
+              'pessoas',
+              {'uuid': _geradorUuid.v4()},
+              where: 'id = ?',
+              whereArgs: [id],
+            );
+          }
+
+          // Impede dois registros com o mesmo UUID.
+          await db.execute('''
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_pessoas_uuid
+            ON pessoas(uuid)
+          ''');
+        }
       },
     );
   }
@@ -48,7 +93,7 @@ class BancoDados {
     return db.insert(
       'pessoas',
       pessoa.toMap(),
-      conflictAlgorithm: ConflictAlgorithm.replace,
+      conflictAlgorithm: ConflictAlgorithm.abort,
     );
   }
 
@@ -82,12 +127,16 @@ class BancoDados {
 
   Future<int> atualizarPessoa(Pessoa pessoa) async {
     if (pessoa.id == null) {
-      throw ArgumentError('A pessoa precisa possuir um ID para ser atualizada.');
+      throw ArgumentError(
+        'A pessoa precisa possuir um ID para ser atualizada.',
+      );
     }
 
     final db = await banco;
-    final dados = Map<String, Object?>.from(pessoa.toMap())
-      ..remove('id');
+
+    final dados = Map<String, Object?>.from(
+      pessoa.toMap(),
+    )..remove('id');
 
     return db.update(
       'pessoas',

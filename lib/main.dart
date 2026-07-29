@@ -8,6 +8,7 @@ import 'servicos/operador_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'servicos/autenticacao_service.dart';
+import 'package:uuid/uuid.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -51,6 +52,7 @@ class _TelaCadastroState extends State<TelaCadastro> {
   final observacoesController = TextEditingController();
   final OperadorService operadorService = OperadorService.instancia;
   final VozService vozService = VozService.instancia;
+  final Uuid geradorUuid = Uuid();
 
   bool vozDisponivel = false;
   String? campoEmEscuta;
@@ -170,6 +172,7 @@ class _TelaCadastroState extends State<TelaCadastro> {
 
     try {
       final pessoa = Pessoa(
+        uuid: geradorUuid.v4(),
         nome: nome,
         endereco: enderecoController.text.trim(),
         telefone: telefoneController.text.trim(),
