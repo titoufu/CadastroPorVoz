@@ -6,10 +6,7 @@ import '../modelos/pessoa.dart';
 class TelaEdicao extends StatefulWidget {
   final Pessoa pessoa;
 
-  const TelaEdicao({
-    super.key,
-    required this.pessoa,
-  });
+  const TelaEdicao({super.key, required this.pessoa});
 
   @override
   State<TelaEdicao> createState() => _TelaEdicaoState();
@@ -28,17 +25,11 @@ class _TelaEdicaoState extends State<TelaEdicao> {
   void initState() {
     super.initState();
 
-    nomeController = TextEditingController(
-      text: widget.pessoa.nome,
-    );
+    nomeController = TextEditingController(text: widget.pessoa.nome);
 
-    enderecoController = TextEditingController(
-      text: widget.pessoa.endereco,
-    );
+    enderecoController = TextEditingController(text: widget.pessoa.endereco);
 
-    telefoneController = TextEditingController(
-      text: widget.pessoa.telefone,
-    );
+    telefoneController = TextEditingController(text: widget.pessoa.telefone);
 
     observacoesController = TextEditingController(
       text: widget.pessoa.observacoes,
@@ -86,25 +77,19 @@ class _TelaEdicaoState extends State<TelaEdicao> {
         alteradoPor: alteradoPor,
       );
 
-      await BancoDados.instancia.atualizarPessoa(
-        pessoaAtualizada,
-      );
+      await BancoDados.instancia.atualizarPessoa(pessoaAtualizada);
 
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Cadastro atualizado com sucesso!'),
-        ),
+        const SnackBar(content: Text('Cadastro atualizado com sucesso!')),
       );
 
       Navigator.of(context).pop(true);
     } catch (erro) {
       if (!mounted) return;
 
-      mostrarMensagem(
-        'Não foi possível atualizar o cadastro: $erro',
-      );
+      mostrarMensagem('Não foi possível atualizar o cadastro: $erro');
     } finally {
       if (mounted) {
         setState(() {
@@ -115,9 +100,44 @@ class _TelaEdicaoState extends State<TelaEdicao> {
   }
 
   void mostrarMensagem(String mensagem) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(mensagem)),
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(mensagem)));
+  }
+
+  Future<void> excluirCadastro() async {
+    final confirmou = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Excluir cadastro'),
+          content: Text(
+            'Tem certeza de que deseja excluir o cadastro de '
+            '${widget.pessoa.nome}?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Excluir'),
+            ),
+          ],
+        );
+      },
     );
+
+    if (confirmou != true || widget.pessoa.id == null) {
+      return;
+    }
+
+    await BancoDados.instancia.excluirPessoa(widget.pessoa.id!);
+
+    if (!mounted) return;
+
+    Navigator.of(context).pop(true);
   }
 
   @override
@@ -125,6 +145,13 @@ class _TelaEdicaoState extends State<TelaEdicao> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Editar cadastro'),
+        actions: [
+          IconButton(
+            tooltip: 'Excluir cadastro',
+            onPressed: excluirCadastro,
+            icon: const Icon(Icons.delete_outline),
+          ),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -186,22 +213,15 @@ class _TelaEdicaoState extends State<TelaEdicao> {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton.icon(
-                  onPressed:
-                      salvando ? null : salvarAlteracoes,
+                  onPressed: salvando ? null : salvarAlteracoes,
                   icon: salvando
                       ? const SizedBox(
                           width: 22,
                           height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                          ),
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.save),
-                  label: Text(
-                    salvando
-                        ? 'Salvando...'
-                        : 'Salvar alterações',
-                  ),
+                  label: Text(salvando ? 'Salvando...' : 'Salvar alterações'),
                 ),
               ),
             ],
