@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'banco/banco_dados.dart';
+import 'modelos/pessoa.dart';
+import 'telas/tela_consulta.dart';
+
 void main() {
   runApp(const CadastroPorVozApp());
 }
@@ -33,6 +37,9 @@ class _TelaCadastroState extends State<TelaCadastro> {
   final enderecoController = TextEditingController();
   final telefoneController = TextEditingController();
   final observacoesController = TextEditingController();
+  final cadastradoPorController = TextEditingController();
+
+  bool salvando = false;
 
   @override
   void dispose() {
@@ -40,31 +47,65 @@ class _TelaCadastroState extends State<TelaCadastro> {
     enderecoController.dispose();
     telefoneController.dispose();
     observacoesController.dispose();
+    cadastradoPorController.dispose();
     super.dispose();
   }
 
-  void salvarCadastro() {
+  Future<void> salvarCadastro() async {
     final nome = nomeController.text.trim();
+    final cadastradoPor = cadastradoPorController.text.trim();
 
     if (nome.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Informe o nome da pessoa.'),
-        ),
-      );
+      mostrarMensagem('Informe o nome da pessoa.');
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Cadastro salvo com sucesso!'),
-      ),
-    );
+    if (cadastradoPor.isEmpty) {
+      mostrarMensagem('Informe quem está realizando o cadastro.');
+      return;
+    }
 
-    nomeController.clear();
-    enderecoController.clear();
-    telefoneController.clear();
-    observacoesController.clear();
+    setState(() {
+      salvando = true;
+    });
+
+    try {
+      final pessoa = Pessoa(
+        nome: nome,
+        endereco: enderecoController.text.trim(),
+        telefone: telefoneController.text.trim(),
+        observacoes: observacoesController.text.trim(),
+        criadoEm: DateTime.now(),
+        criadoPor: cadastradoPor,
+      );
+
+      await BancoDados.instancia.inserirPessoa(pessoa);
+
+      if (!mounted) return;
+
+      nomeController.clear();
+      enderecoController.clear();
+      telefoneController.clear();
+      observacoesController.clear();
+
+      mostrarMensagem('Cadastro salvo com sucesso!');
+    } catch (erro) {
+      if (!mounted) return;
+
+      mostrarMensagem('Não foi possível salvar o cadastro: $erro');
+    } finally {
+      if (mounted) {
+        setState(() {
+          salvando = false;
+        });
+      }
+    }
+  }
+
+  void mostrarMensagem(String mensagem) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(mensagem)));
   }
 
   @override
@@ -73,6 +114,17 @@ class _TelaCadastroState extends State<TelaCadastro> {
       appBar: AppBar(
         title: const Text('Cadastro por Voz'),
         centerTitle: true,
+        actions: [
+          IconButton(
+            tooltip: 'Ver cadastros',
+            icon: const Icon(Icons.list_alt),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const TelaConsulta()),
+              );
+            },
+          ),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -80,7 +132,18 @@ class _TelaCadastroState extends State<TelaCadastro> {
           child: Column(
             children: [
               TextField(
+                controller: cadastradoPorController,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Cadastrado por',
+                  prefixIcon: Icon(Icons.badge),
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
                 controller: nomeController,
+                textCapitalization: TextCapitalization.words,
                 decoration: const InputDecoration(
                   labelText: 'Nome',
                   prefixIcon: Icon(Icons.person),
@@ -90,6 +153,7 @@ class _TelaCadastroState extends State<TelaCadastro> {
               const SizedBox(height: 16),
               TextField(
                 controller: enderecoController,
+                textCapitalization: TextCapitalization.sentences,
                 decoration: const InputDecoration(
                   labelText: 'Endereço',
                   prefixIcon: Icon(Icons.home),
@@ -110,6 +174,7 @@ class _TelaCadastroState extends State<TelaCadastro> {
               TextField(
                 controller: observacoesController,
                 maxLines: 4,
+                textCapitalization: TextCapitalization.sentences,
                 decoration: const InputDecoration(
                   labelText: 'Observações',
                   prefixIcon: Icon(Icons.notes),
@@ -121,9 +186,15 @@ class _TelaCadastroState extends State<TelaCadastro> {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton.icon(
-                  onPressed: salvarCadastro,
-                  icon: const Icon(Icons.save),
-                  label: const Text('Salvar cadastro'),
+                  onPressed: salvando ? null : salvarCadastro,
+                  icon: salvando
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.save),
+                  label: Text(salvando ? 'Salvando...' : 'Salvar cadastro'),
                 ),
               ),
             ],
