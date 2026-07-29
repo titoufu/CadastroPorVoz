@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "540778773287",
+    "project_id": "cadastroporvoz",
+    "storage_bucket": "cadastroporvoz.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:540778773287:android:77cd4765e32ba2bac30702",
+        "android_client_info": {
+          "package_name": "com.example.cadastro_por_voz"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDbYhUJhbFNbd7T30dd0ZaOOxmsHZjtKqk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
