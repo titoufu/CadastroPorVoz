@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../banco/banco_dados.dart';
 import '../modelos/pessoa.dart';
+import 'tela_edicao.dart';
 
 class TelaConsulta extends StatefulWidget {
   const TelaConsulta({super.key});
@@ -52,9 +53,7 @@ class _TelaConsultaState extends State<TelaConsulta> {
         future: pessoasFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
 
           if (snapshot.hasError) {
@@ -72,16 +71,13 @@ class _TelaConsultaState extends State<TelaConsulta> {
           final pessoas = snapshot.data ?? [];
 
           if (pessoas.isEmpty) {
-            return const Center(
-              child: Text('Nenhum cadastro encontrado.'),
-            );
+            return const Center(child: Text('Nenhum cadastro encontrado.'));
           }
 
           return ListView.separated(
             padding: const EdgeInsets.all(12),
             itemCount: pessoas.length,
-            separatorBuilder: (context, index) =>
-                const SizedBox(height: 8),
+            separatorBuilder: (context, index) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final pessoa = pessoas[index];
 
@@ -91,14 +87,10 @@ class _TelaConsultaState extends State<TelaConsulta> {
 
               return Card(
                 child: ListTile(
-                  leading: CircleAvatar(
-                    child: Text(inicial),
-                  ),
+                  leading: CircleAvatar(child: Text(inicial)),
                   title: Text(
                     pessoa.nome,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   subtitle: Text(
                     'Endereço: ${pessoa.endereco}\n'
@@ -108,6 +100,18 @@ class _TelaConsultaState extends State<TelaConsulta> {
                   ),
                   isThreeLine: true,
                   trailing: const Icon(Icons.chevron_right),
+                  onTap: () async {
+                    final cadastroAlterado = await Navigator.of(context)
+                        .push<bool>(
+                          MaterialPageRoute(
+                            builder: (context) => TelaEdicao(pessoa: pessoa),
+                          ),
+                        );
+
+                    if (cadastroAlterado == true) {
+                      atualizarLista();
+                    }
+                  },
                 ),
               );
             },
