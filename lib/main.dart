@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import 'banco/banco_dados.dart';
 import 'modelos/pessoa.dart';
+import 'servicos/voz_service.dart';
 import 'telas/tela_consulta.dart';
+import 'servicos/operador_service.dart';
 
 void main() {
   runApp(const CadastroPorVozApp());
@@ -33,22 +35,110 @@ class TelaCadastro extends StatefulWidget {
 }
 
 class _TelaCadastroState extends State<TelaCadastro> {
+  final cadastradoPorController = TextEditingController();
   final nomeController = TextEditingController();
   final enderecoController = TextEditingController();
   final telefoneController = TextEditingController();
   final observacoesController = TextEditingController();
-  final cadastradoPorController = TextEditingController();
+  final OperadorService operadorService = OperadorService.instancia;
+  final VozService vozService = VozService.instancia;
 
+  bool vozDisponivel = false;
+  String? campoEmEscuta;
   bool salvando = false;
 
   @override
-  void dispose() {
-    nomeController.dispose();
-    enderecoController.dispose();
-    telefoneController.dispose();
-    observacoesController.dispose();
-    cadastradoPorController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    carregarOperador();
+    inicializarVoz();
+  }
+
+  Future<void> carregarOperador() async {
+    final nomeOperador = await operadorService.carregarNome();
+
+    if (!mounted) return;
+
+    setState(() {
+      cadastradoPorController.text = nomeOperador;
+    });
+  }
+
+  Future<void> inicializarVoz() async {
+    final disponivel = await vozService.inicializar(
+      aoMudarStatus: (status) {
+        if (!mounted) return;
+
+        setState(() {
+          if (status != 'listening') {
+            campoEmEscuta = null;
+          }
+        });
+      },
+      aoOcorrerErro: (mensagem) {
+        if (!mounted) return;
+
+        setState(() {
+          campoEmEscuta = null;
+        });
+
+        mostrarMensagem('Erro no reconhecimento de voz: $mensagem');
+      },
+    );
+
+    if (!mounted) return;
+
+    setState(() {
+      vozDisponivel = disponivel;
+    });
+
+    if (!disponivel) {
+      mostrarMensagem('O reconhecimento de voz não está disponível.');
+    }
+  }
+
+  Future<void> alternarEscuta({
+    required String campo,
+    required TextEditingController controller,
+  }) async {
+    if (!vozDisponivel) {
+      await inicializarVoz();
+
+      if (!vozDisponivel) {
+        return;
+      }
+    }
+
+    if (vozService.estaOuvindo) {
+      await vozService.pararEscuta();
+
+      if (mounted) {
+        setState(() {
+          campoEmEscuta = null;
+        });
+      }
+
+      return;
+    }
+
+    setState(() {
+      campoEmEscuta = campo;
+    });
+
+    await vozService.iniciarEscuta(
+      aoReconhecer: (texto) {
+        if (!mounted || campoEmEscuta != campo) {
+          return;
+        }
+
+        setState(() {
+          controller.text = texto;
+          controller.selection = TextSelection.collapsed(
+            offset: controller.text.length,
+          );
+        });
+      },
+    );
   }
 
   Future<void> salvarCadastro() async {
@@ -80,9 +170,12 @@ class _TelaCadastroState extends State<TelaCadastro> {
       );
 
       await BancoDados.instancia.inserirPessoa(pessoa);
+      await operadorService.salvarNome(cadastradoPor);
 
       if (!mounted) return;
 
+      // O campo "Cadastrado por" não é apagado,
+      // facilitando vários cadastros feitos pela mesma pessoa.
       nomeController.clear();
       enderecoController.clear();
       telefoneController.clear();
@@ -106,6 +199,35 @@ class _TelaCadastroState extends State<TelaCadastro> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(mensagem)));
+  }
+
+  @override
+  void dispose() {
+    nomeController.dispose();
+    enderecoController.dispose();
+    telefoneController.dispose();
+    observacoesController.dispose();
+    cadastradoPorController.dispose();
+
+    super.dispose();
+  }
+
+  Widget botaoMicrofone({
+    required String campo,
+    required TextEditingController controller,
+  }) {
+    final estaOuvindo = campoEmEscuta == campo;
+
+    return IconButton(
+      tooltip: estaOuvindo ? 'Parar de ouvir' : 'Ditar $campo',
+      onPressed: () {
+        alternarEscuta(campo: campo, controller: controller);
+      },
+      icon: Icon(
+        estaOuvindo ? Icons.mic : Icons.mic_none,
+        color: estaOuvindo ? Colors.red : null,
+      ),
+    );
   }
 
   @override
@@ -134,54 +256,79 @@ class _TelaCadastroState extends State<TelaCadastro> {
               TextField(
                 controller: cadastradoPorController,
                 textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Cadastrado por',
-                  prefixIcon: Icon(Icons.badge),
-                  border: OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.badge),
+                  border: const OutlineInputBorder(),
+                  suffixIcon: botaoMicrofone(
+                    campo: 'cadastrado por',
+                    controller: cadastradoPorController,
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
+
               TextField(
                 controller: nomeController,
                 textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Nome',
-                  prefixIcon: Icon(Icons.person),
-                  border: OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.person),
+                  border: const OutlineInputBorder(),
+                  suffixIcon: botaoMicrofone(
+                    campo: 'nome',
+                    controller: nomeController,
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
+
               TextField(
                 controller: enderecoController,
                 textCapitalization: TextCapitalization.sentences,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Endereço',
-                  prefixIcon: Icon(Icons.home),
-                  border: OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.home),
+                  border: const OutlineInputBorder(),
+                  suffixIcon: botaoMicrofone(
+                    campo: 'endereço',
+                    controller: enderecoController,
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
+
               TextField(
                 controller: telefoneController,
                 keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Telefone',
-                  prefixIcon: Icon(Icons.phone),
-                  border: OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.phone),
+                  border: const OutlineInputBorder(),
+                  suffixIcon: botaoMicrofone(
+                    campo: 'telefone',
+                    controller: telefoneController,
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
+
               TextField(
                 controller: observacoesController,
                 maxLines: 4,
                 textCapitalization: TextCapitalization.sentences,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Observações',
-                  prefixIcon: Icon(Icons.notes),
-                  border: OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.notes),
+                  border: const OutlineInputBorder(),
+                  suffixIcon: botaoMicrofone(
+                    campo: 'observações',
+                    controller: observacoesController,
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
+
               SizedBox(
                 width: double.infinity,
                 height: 52,

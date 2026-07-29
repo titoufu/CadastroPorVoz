@@ -96,9 +96,10 @@ class _TelaConsultaState extends State<TelaConsulta> {
                     'Endereço: ${pessoa.endereco}\n'
                     'Telefone: ${pessoa.telefone}\n'
                     'Cadastrado por: ${pessoa.criadoPor}\n'
-                    'Data: ${formatarData(pessoa.criadoEm)}',
+                    'Criado em: ${formatarData(pessoa.criadoEm)}'
+                    '${pessoa.alteradoPor != null ? '\nAlterado por: ${pessoa.alteradoPor}' : ''}'
+                    '${pessoa.alteradoEm != null ? '\nAlterado em: ${formatarData(pessoa.alteradoEm!)}' : ''}',
                   ),
-                  isThreeLine: true,
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () async {
                     final cadastroAlterado = await Navigator.of(context)
