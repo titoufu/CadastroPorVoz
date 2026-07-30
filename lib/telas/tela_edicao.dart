@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-
 import '../banco/banco_dados.dart';
 import '../modelos/pessoa.dart';
 import '../servicos/operador_service.dart';
+import '../servicos/firestore_service.dart';
 
 class TelaEdicao extends StatefulWidget {
   final Pessoa pessoa;
@@ -20,6 +20,7 @@ class _TelaEdicaoState extends State<TelaEdicao> {
   late final TextEditingController observacoesController;
   final alteradoPorController = TextEditingController();
   final OperadorService operadorService = OperadorService.instancia;
+  final FirestoreService firestoreService = FirestoreService.instancia;
 
   bool salvando = false;
 
@@ -92,6 +93,7 @@ class _TelaEdicaoState extends State<TelaEdicao> {
       );
 
       await BancoDados.instancia.atualizarPessoa(pessoaAtualizada);
+      await firestoreService.salvarPessoa(pessoaAtualizada);
 
       if (!mounted) return;
 
@@ -148,6 +150,7 @@ class _TelaEdicaoState extends State<TelaEdicao> {
     }
 
     await BancoDados.instancia.excluirPessoa(widget.pessoa.id!);
+    await firestoreService.excluirPessoa(widget.pessoa.uuid);
 
     if (!mounted) return;
 

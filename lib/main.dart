@@ -9,6 +9,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'servicos/autenticacao_service.dart';
 import 'package:uuid/uuid.dart';
+import 'servicos/firestore_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -53,6 +54,7 @@ class _TelaCadastroState extends State<TelaCadastro> {
   final OperadorService operadorService = OperadorService.instancia;
   final VozService vozService = VozService.instancia;
   final Uuid geradorUuid = Uuid();
+  final FirestoreService firestoreService = FirestoreService.instancia;
 
   bool vozDisponivel = false;
   String? campoEmEscuta;
@@ -182,6 +184,7 @@ class _TelaCadastroState extends State<TelaCadastro> {
       );
 
       await BancoDados.instancia.inserirPessoa(pessoa);
+      await firestoreService.salvarPessoa(pessoa);
       await operadorService.salvarNome(cadastradoPor);
 
       if (!mounted) return;
