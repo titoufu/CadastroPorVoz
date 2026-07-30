@@ -59,6 +59,7 @@ class _TelaCadastroState extends State<TelaCadastro> {
   bool vozDisponivel = false;
   String? campoEmEscuta;
   bool salvando = false;
+  bool sincronizando = false;
 
   @override
   void initState() {
@@ -245,6 +246,42 @@ class _TelaCadastroState extends State<TelaCadastro> {
     );
   }
 
+  Future<void> sincronizarCadastros() async {
+    if (sincronizando) return;
+
+    setState(() {
+      sincronizando = true;
+    });
+
+    try {
+      final pessoas = await firestoreService.listarPessoasAtivas();
+      final uuidsExcluidos = await firestoreService.listarUuidsExcluidos();
+
+      for (final pessoa in pessoas) {
+        await BancoDados.instancia.salvarOuAtualizarPorUuid(pessoa);
+      }
+      for (final uuid in uuidsExcluidos) {
+        await BancoDados.instancia.excluirPorUuid(uuid);
+      }
+      if (!mounted) return;
+
+      mostrarMensagem(
+        '${pessoas.length} cadastro(s) sincronizado(s) e '
+        '${uuidsExcluidos.length} exclusão(ões) aplicada(s).',
+      );
+    } catch (erro) {
+      if (!mounted) return;
+
+      mostrarMensagem('Não foi possível sincronizar: $erro');
+    } finally {
+      if (mounted) {
+        setState(() {
+          sincronizando = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -252,6 +289,17 @@ class _TelaCadastroState extends State<TelaCadastro> {
         title: const Text('Cadastro por Voz'),
         centerTitle: true,
         actions: [
+          IconButton(
+            tooltip: 'Sincronizar cadastros',
+            onPressed: sincronizando ? null : sincronizarCadastros,
+            icon: sincronizando
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.sync),
+          ),
           IconButton(
             tooltip: 'Ver cadastros',
             icon: const Icon(Icons.list_alt),

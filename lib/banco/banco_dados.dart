@@ -19,10 +19,7 @@ class BancoDados {
   }
 
   Future<Database> _abrirBanco() async {
-    final caminhoBanco = join(
-      await getDatabasesPath(),
-      'cadastro_por_voz.db',
-    );
+    final caminhoBanco = join(await getDatabasesPath(), 'cadastro_por_voz.db');
 
     return openDatabase(
       caminhoBanco,
@@ -61,10 +58,7 @@ class BancoDados {
           ''');
 
           // Gera um UUID para cada cadastro antigo.
-          final registros = await db.query(
-            'pessoas',
-            columns: ['id'],
-          );
+          final registros = await db.query('pessoas', columns: ['id']);
 
           for (final registro in registros) {
             final id = registro['id'] as int;
@@ -100,10 +94,7 @@ class BancoDados {
   Future<List<Pessoa>> listarPessoas() async {
     final db = await banco;
 
-    final registros = await db.query(
-      'pessoas',
-      orderBy: 'nome COLLATE NOCASE',
-    );
+    final registros = await db.query('pessoas', orderBy: 'nome COLLATE NOCASE');
 
     return registros.map(Pessoa.fromMap).toList();
   }
@@ -134,25 +125,51 @@ class BancoDados {
 
     final db = await banco;
 
-    final dados = Map<String, Object?>.from(
-      pessoa.toMap(),
-    )..remove('id');
+    final dados = Map<String, Object?>.from(pessoa.toMap())..remove('id');
 
-    return db.update(
-      'pessoas',
-      dados,
-      where: 'id = ?',
-      whereArgs: [pessoa.id],
-    );
+    return db.update('pessoas', dados, where: 'id = ?', whereArgs: [pessoa.id]);
   }
 
   Future<int> excluirPessoa(int id) async {
     final db = await banco;
 
-    return db.delete(
-      'pessoas',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    return db.delete('pessoas', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> salvarOuAtualizarPorUuid(Pessoa pessoa) async {
+    final db = await banco;
+
+    await db.transaction((transacao) async {
+      final registros = await transacao.query(
+        'pessoas',
+        columns: ['id'],
+        where: 'uuid = ?',
+        whereArgs: [pessoa.uuid],
+        limit: 1,
+      );
+
+      final dados = Map<String, Object?>.from(pessoa.toMap())..remove('id');
+
+      if (registros.isEmpty) {
+        await transacao.insert(
+          'pessoas',
+          dados,
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      } else {
+        await transacao.update(
+          'pessoas',
+          dados,
+          where: 'uuid = ?',
+          whereArgs: [pessoa.uuid],
+        );
+      }
+    });
+  }
+
+  Future<int> excluirPorUuid(String uuid) async {
+    final db = await banco;
+
+    return db.delete('pessoas', where: 'uuid = ?', whereArgs: [uuid]);
   }
 }

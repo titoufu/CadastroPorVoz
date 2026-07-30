@@ -36,4 +36,33 @@ class FirestoreService {
       'excluido': false,
     });
   }
+
+  Future<List<Pessoa>> listarPessoasAtivas() async {
+    final consulta = await _pessoas.where('excluido', isEqualTo: false).get();
+
+    return consulta.docs.map((documento) {
+      final dados = documento.data();
+
+      final criadoEm = dados['criadoEm'] as Timestamp;
+      final alteradoEm = dados['alteradoEm'] as Timestamp?;
+
+      return Pessoa(
+        uuid: documento.id,
+        nome: dados['nome'] as String? ?? '',
+        endereco: dados['endereco'] as String? ?? '',
+        telefone: dados['telefone'] as String? ?? '',
+        observacoes: dados['observacoes'] as String? ?? '',
+        criadoEm: criadoEm.toDate(),
+        criadoPor: dados['criadoPor'] as String? ?? '',
+        alteradoEm: alteradoEm?.toDate(),
+        alteradoPor: dados['alteradoPor'] as String?,
+      );
+    }).toList();
+  }
+
+  Future<List<String>> listarUuidsExcluidos() async {
+    final consulta = await _pessoas.where('excluido', isEqualTo: true).get();
+
+    return consulta.docs.map((documento) => documento.id).toList();
+  }
 }
