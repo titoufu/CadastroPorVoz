@@ -64,8 +64,12 @@ class _TelaCadastroState extends State<TelaCadastro> {
   @override
   void initState() {
     super.initState();
+
     carregarOperador();
     inicializarVoz();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      sincronizarCadastros();
+    });
   }
 
   Future<void> carregarOperador() async {
@@ -187,6 +191,7 @@ class _TelaCadastroState extends State<TelaCadastro> {
       await BancoDados.instancia.inserirPessoa(pessoa);
       await firestoreService.salvarPessoa(pessoa);
       await operadorService.salvarNome(cadastradoPor);
+      await sincronizarCadastros();
 
       if (!mounted) return;
 
@@ -197,7 +202,7 @@ class _TelaCadastroState extends State<TelaCadastro> {
       telefoneController.clear();
       observacoesController.clear();
 
-      mostrarMensagem('Cadastro salvo com sucesso!');
+      mostrarMensagem('Cadastro salvo no celular e sincronizado com a nuvem.');
     } catch (erro) {
       if (!mounted) return;
 
@@ -303,7 +308,11 @@ class _TelaCadastroState extends State<TelaCadastro> {
           IconButton(
             tooltip: 'Ver cadastros',
             icon: const Icon(Icons.list_alt),
-            onPressed: () {
+            onPressed: () async {
+              await sincronizarCadastros();
+
+              if (!mounted) return;
+
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (context) => const TelaConsulta()),
               );
