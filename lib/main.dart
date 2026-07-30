@@ -10,6 +10,7 @@ import 'servicos/firestore_service.dart';
 import 'servicos/operador_service.dart';
 import 'servicos/voz_service.dart';
 import 'telas/tela_consulta.dart';
+import 'telas/tela_sobre.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,7 +29,7 @@ class CadastroPorVozApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Cadastro por Voz',
+      title: 'Cadastro Assistido',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
@@ -347,9 +348,18 @@ class _TelaCadastroState extends State<TelaCadastro> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Cadastro por Voz'),
+        title: const Text('Cadastro Assistido'),
         centerTitle: true,
         actions: [
+          IconButton(
+            tooltip: 'Sobre',
+            icon: const Icon(Icons.info_outline),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const TelaSobre()),
+              );
+            },
+          ),
           IconButton(
             tooltip: 'Sincronizar cadastros',
             onPressed: sincronizando ? null : sincronizarCadastros,
