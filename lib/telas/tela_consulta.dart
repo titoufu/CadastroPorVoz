@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import '../servicos/exportacao_service.dart';
 import '../banco/banco_dados.dart';
 import '../modelos/pessoa.dart';
 import 'tela_edicao.dart';
@@ -42,6 +42,26 @@ class _TelaConsultaState extends State<TelaConsulta> {
       appBar: AppBar(
         title: const Text('Cadastros'),
         actions: [
+          IconButton(
+            tooltip: 'Exportar para Excel',
+            icon: const Icon(Icons.file_download_outlined),
+            onPressed: () async {
+              final pessoas = await BancoDados.instancia.listarPessoas();
+
+              if (!context.mounted) return;
+
+              if (pessoas.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Não há cadastros para exportar.'),
+                  ),
+                );
+                return;
+              }
+
+              await ExportacaoService.exportarCsv(pessoas);
+            },
+          ),
           IconButton(
             onPressed: atualizarLista,
             tooltip: 'Atualizar',
