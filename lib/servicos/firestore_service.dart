@@ -24,6 +24,10 @@ class FirestoreService {
     await _pessoas.doc(pessoa.uuid).set({
       'uuid': pessoa.uuid,
       'nome': pessoa.nome,
+      'cpf': pessoa.cpf,
+      'dataNascimento': pessoa.dataNascimento == null
+          ? null
+          : _formatarData(pessoa.dataNascimento!),
       'endereco': pessoa.endereco,
       'telefone': pessoa.telefone,
       'observacoes': pessoa.observacoes,
@@ -33,36 +37,73 @@ class FirestoreService {
           ? null
           : Timestamp.fromDate(pessoa.alteradoEm!),
       'alteradoPor': pessoa.alteradoPor,
-      'excluido': false,
+      'excluido': pessoa.excluido,
     });
   }
 
   Future<List<Pessoa>> listarPessoasAtivas() async {
     final consulta = await _pessoas.where('excluido', isEqualTo: false).get();
 
-    return consulta.docs.map((documento) {
-      final dados = documento.data();
+    return consulta.docs.map(_pessoaDoDocumento).toList();
+  }
 
-      final criadoEm = dados['criadoEm'] as Timestamp;
-      final alteradoEm = dados['alteradoEm'] as Timestamp?;
+  Future<List<Pessoa>> listarTodasPessoas() async {
+    final consulta = await _pessoas.get();
 
-      return Pessoa(
-        uuid: documento.id,
-        nome: dados['nome'] as String? ?? '',
-        endereco: dados['endereco'] as String? ?? '',
-        telefone: dados['telefone'] as String? ?? '',
-        observacoes: dados['observacoes'] as String? ?? '',
-        criadoEm: criadoEm.toDate(),
-        criadoPor: dados['criadoPor'] as String? ?? '',
-        alteradoEm: alteradoEm?.toDate(),
-        alteradoPor: dados['alteradoPor'] as String?,
-      );
-    }).toList();
+    return consulta.docs.map(_pessoaDoDocumento).toList();
+  }
+
+  Future<List<Pessoa>> listarPessoasInativas() async {
+    final consulta = await _pessoas.where('excluido', isEqualTo: true).get();
+
+    return consulta.docs.map(_pessoaDoDocumento).toList();
   }
 
   Future<List<String>> listarUuidsExcluidos() async {
     final consulta = await _pessoas.where('excluido', isEqualTo: true).get();
 
     return consulta.docs.map((documento) => documento.id).toList();
+  }
+
+  Pessoa _pessoaDoDocumento(
+    QueryDocumentSnapshot<Map<String, dynamic>> documento,
+  ) {
+    final dados = documento.data();
+    final criadoEm = dados['criadoEm'] as Timestamp?;
+    final alteradoEm = dados['alteradoEm'] as Timestamp?;
+
+    return Pessoa(
+      uuid: documento.id,
+      nome: dados['nome'] as String? ?? '',
+      cpf: dados['cpf'] as String? ?? '',
+      dataNascimento: _lerDataNascimento(dados['dataNascimento']),
+      endereco: dados['endereco'] as String? ?? '',
+      telefone: dados['telefone'] as String? ?? '',
+      observacoes: dados['observacoes'] as String? ?? '',
+      criadoEm: criadoEm?.toDate() ?? DateTime.now(),
+      criadoPor: dados['criadoPor'] as String? ?? '',
+      alteradoEm: alteradoEm?.toDate(),
+      alteradoPor: dados['alteradoPor'] as String?,
+      excluido: dados['excluido'] as bool? ?? false,
+    );
+  }
+
+  static String _formatarData(DateTime data) {
+    final ano = data.year.toString().padLeft(4, '0');
+    final mes = data.month.toString().padLeft(2, '0');
+    final dia = data.day.toString().padLeft(2, '0');
+
+    return '$ano-$mes-$dia';
+  }
+
+  static DateTime? _lerDataNascimento(Object? valor) {
+    if (valor == null) return null;
+
+    if (valor is Timestamp) {
+      final data = valor.toDate();
+      return DateTime(data.year, data.month, data.day);
+    }
+
+    return DateTime.tryParse(valor.toString());
   }
 }

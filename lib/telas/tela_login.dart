@@ -192,110 +192,233 @@ class _TelaLoginState extends State<TelaLogin> {
 
   @override
   Widget build(BuildContext context) {
+    const azulInstitucional = Color(0xFF343795);
+    const azulClaro = Color(0xFFEFF5FF);
+
     return Scaffold(
+      backgroundColor: azulClaro,
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
+              constraints: const BoxConstraints(maxWidth: 440),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Icon(Icons.record_voice_over, size: 72),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Cadastro por Voz',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 32),
-                  TextField(
-                    controller: nomeController,
-                    enabled: !carregando,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(
-                      labelText: 'Nome completo — para criar conta',
-                      prefixIcon: Icon(Icons.person_outline),
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: emailController,
-                    enabled: !carregando,
-                    keyboardType: TextInputType.emailAddress,
-                    autocorrect: false,
-                    textCapitalization: TextCapitalization.none,
-                    decoration: const InputDecoration(
-                      labelText: 'E-mail',
-                      prefixIcon: Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: senhaController,
-                    enabled: !carregando,
-                    obscureText: ocultarSenha,
-                    onSubmitted: (_) => entrarComEmail(),
-                    decoration: InputDecoration(
-                      labelText: 'Senha',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      border: const OutlineInputBorder(),
-                      suffixIcon: IconButton(
-                        onPressed: () {
-                          setState(() {
-                            ocultarSenha = !ocultarSenha;
-                          });
-                        },
-                        icon: Icon(
-                          ocultarSenha
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.asset(
+                        'assets/imagens/logo_projeto_acolher.png',
+                        width: 72,
+                        height: 72,
+                        fit: BoxFit.contain,
+                        semanticLabel: 'Logo do Projeto Acolher',
+                      ),
+                      const SizedBox(width: 12),
+                      const Flexible(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Projeto Acolher',
+                              style: TextStyle(
+                                color: azulInstitucional,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.3,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Lar Espírita Maria Lobato de Freitas',
+                              style: TextStyle(
+                                color: Color(0xFF555555),
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: carregando ? null : redefinirSenha,
-                      child: const Text('Esqueci minha senha'),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  FilledButton(
-                    onPressed: carregando ? null : entrarComEmail,
-                    child: const Text('Entrar'),
-                  ),
-                  const SizedBox(height: 8),
-                  OutlinedButton(
-                    onPressed: carregando ? null : criarConta,
-                    child: const Text('Criar conta'),
-                  ),
-                  const SizedBox(height: 24),
-                  const Row(
-                    children: [
-                      Expanded(child: Divider()),
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 12),
-                        child: Text('ou'),
-                      ),
-                      Expanded(child: Divider()),
                     ],
                   ),
-                  const SizedBox(height: 24),
-                  OutlinedButton.icon(
-                    onPressed: carregando ? null : entrarComGoogle,
-                    icon: const Icon(Icons.login),
-                    label: const Text('Entrar com Google'),
+                  const SizedBox(height: 10),
+                  Card(
+                    elevation: 2,
+                    shadowColor: Colors.black26,
+                    color: Colors.white,
+                    margin: EdgeInsets.zero,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const Text(
+                            'Acesse sua conta',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: azulInstitucional,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: nomeController,
+                            enabled: !carregando,
+                            textCapitalization: TextCapitalization.words,
+                            decoration: const InputDecoration(
+                              labelText: 'Nome completo (para criar conta)',
+                              prefixIcon: Icon(Icons.person_outline),
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          TextField(
+                            controller: emailController,
+                            enabled: !carregando,
+                            keyboardType: TextInputType.emailAddress,
+                            autocorrect: false,
+                            textCapitalization: TextCapitalization.none,
+                            decoration: const InputDecoration(
+                              labelText: 'E-mail',
+                              prefixIcon: Icon(Icons.email_outlined),
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          TextField(
+                            controller: senhaController,
+                            enabled: !carregando,
+                            obscureText: ocultarSenha,
+                            onSubmitted: (_) => entrarComEmail(),
+                            decoration: InputDecoration(
+                              labelText: 'Senha',
+                              prefixIcon: const Icon(Icons.lock_outline),
+                              border: const OutlineInputBorder(),
+                              isDense: true,
+                              suffixIcon: IconButton(
+                                tooltip: ocultarSenha
+                                    ? 'Mostrar senha'
+                                    : 'Ocultar senha',
+                                onPressed: carregando
+                                    ? null
+                                    : () {
+                                        setState(() {
+                                          ocultarSenha = !ocultarSenha;
+                                        });
+                                      },
+                                icon: Icon(
+                                  ocultarSenha
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              style: TextButton.styleFrom(
+                                minimumSize: const Size(0, 36),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                              ),
+                              onPressed: carregando ? null : redefinirSenha,
+                              child: const Text('Esqueci minha senha'),
+                            ),
+                          ),
+                          SizedBox(
+                            height: 44,
+                            child: FilledButton(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: azulInstitucional,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              onPressed: carregando ? null : entrarComEmail,
+                              child: const Text(
+                                'Entrar',
+                                style: TextStyle(fontSize: 16),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            height: 44,
+                            child: OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: azulInstitucional,
+                                side: const BorderSide(
+                                  color: azulInstitucional,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              onPressed: carregando ? null : criarConta,
+                              child: const Text('Criar conta'),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          const Row(
+                            children: [
+                              Expanded(child: Divider()),
+                              Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 10),
+                                child: Text('ou'),
+                              ),
+                              Expanded(child: Divider()),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            height: 44,
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.black87,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              onPressed: carregando ? null : entrarComGoogle,
+                              icon: const Icon(Icons.login),
+                              label: const Text('Entrar com Google'),
+                            ),
+                          ),
+                          if (carregando) ...[
+                            const SizedBox(height: 12),
+                            const Center(
+                              child: SizedBox.square(
+                                dimension: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 3,
+                                  color: azulInstitucional,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
                   ),
-                  if (carregando) ...[
-                    const SizedBox(height: 24),
-                    const Center(child: CircularProgressIndicator()),
-                  ],
+                  const SizedBox(height: 8),
+                  Text(
+                    'Acolhimento, cuidado e organização a serviço do bem.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 12,
+                    ),
+                  ),
                 ],
               ),
             ),
