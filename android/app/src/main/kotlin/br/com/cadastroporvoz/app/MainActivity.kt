@@ -1,4 +1,4 @@
-package com.example.cadastro_por_voz
+package br.com.cadastroporvoz.app
 
 import io.flutter.embedding.android.FlutterActivity
 

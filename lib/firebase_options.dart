@@ -51,27 +51,29 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyDbYhUJhbFNbd7T30dd0ZaOOxmsHZjtKqk',
-    appId: '1:540778773287:android:77cd4765e32ba2bac30702',
+    appId: '1:540778773287:android:d9e02faf74104218c30702',
     messagingSenderId: '540778773287',
     projectId: 'cadastroporvoz',
     storageBucket: 'cadastroporvoz.firebasestorage.app',
   );
-
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyB738V9FE8cQetLZfgnycgJbSB5qwJY2CU',
     appId: '1:540778773287:ios:0c951ff34be51850c30702',
     messagingSenderId: '540778773287',
     projectId: 'cadastroporvoz',
     storageBucket: 'cadastroporvoz.firebasestorage.app',
+    androidClientId: '540778773287-67mk32nfgka93q5us07l4ucb0j0b514d.apps.googleusercontent.com',
+    iosClientId: '540778773287-jc15nc33l6eldh9hnq5739bctsun4m9n.apps.googleusercontent.com',
     iosBundleId: 'com.example.cadastroPorVoz',
   );
-
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyB738V9FE8cQetLZfgnycgJbSB5qwJY2CU',
     appId: '1:540778773287:ios:0c951ff34be51850c30702',
     messagingSenderId: '540778773287',
     projectId: 'cadastroporvoz',
     storageBucket: 'cadastroporvoz.firebasestorage.app',
+    androidClientId: '540778773287-67mk32nfgka93q5us07l4ucb0j0b514d.apps.googleusercontent.com',
+    iosClientId: '540778773287-jc15nc33l6eldh9hnq5739bctsun4m9n.apps.googleusercontent.com',
     iosBundleId: 'com.example.cadastroPorVoz',
   );
 

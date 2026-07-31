@@ -11,13 +11,19 @@ import 'servicos/operador_service.dart';
 import 'servicos/voz_service.dart';
 import 'telas/tela_consulta.dart';
 import 'telas/tela_sobre.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'telas/tela_login.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  await AutenticacaoService.instancia.garantirAutenticacao();
+  final usuarioAtual = FirebaseAuth.instance.currentUser;
+
+  if (usuarioAtual?.isAnonymous == true) {
+    await FirebaseAuth.instance.signOut();
+  }
 
   runApp(const CadastroPorVozApp());
 }
@@ -34,7 +40,32 @@ class CadastroPorVozApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      home: const TelaCadastro(),
+      home: const ControleAutenticacao(),
+    );
+  }
+}
+
+class ControleAutenticacao extends StatelessWidget {
+  const ControleAutenticacao({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: AutenticacaoService.instancia.mudancasDeAutenticacao,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        final usuario = snapshot.data;
+
+        if (usuario == null || usuario.isAnonymous) {
+          return const TelaLogin();
+        }
+        return const TelaCadastro();
+      },
     );
   }
 }
@@ -382,6 +413,13 @@ class _TelaCadastroState extends State<TelaCadastro> {
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (context) => const TelaConsulta()),
               );
+            },
+          ),
+          IconButton(
+            tooltip: 'Sair',
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await AutenticacaoService.instancia.sair();
             },
           ),
         ],

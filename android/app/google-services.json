@@ -7,12 +7,17 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:540778773287:android:77cd4765e32ba2bac30702",
+        "mobilesdk_app_id": "1:540778773287:android:d9e02faf74104218c30702",
         "android_client_info": {
-          "package_name": "com.example.cadastro_por_voz"
+          "package_name": "br.com.cadastroporvoz.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "540778773287-ohv8072o6gm21ahlfaut4jt9loo30mms.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDbYhUJhbFNbd7T30dd0ZaOOxmsHZjtKqk"
@@ -20,7 +25,63 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "540778773287-ohv8072o6gm21ahlfaut4jt9loo30mms.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "540778773287-jc15nc33l6eldh9hnq5739bctsun4m9n.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.cadastroPorVoz"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:540778773287:android:77cd4765e32ba2bac30702",
+        "android_client_info": {
+          "package_name": "com.example.cadastro_por_voz"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "540778773287-67mk32nfgka93q5us07l4ucb0j0b514d.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.cadastro_por_voz",
+            "certificate_hash": "de29b63e5637362b245c758f5d49ff694364fac5"
+          }
+        },
+        {
+          "client_id": "540778773287-ohv8072o6gm21ahlfaut4jt9loo30mms.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDbYhUJhbFNbd7T30dd0ZaOOxmsHZjtKqk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "540778773287-ohv8072o6gm21ahlfaut4jt9loo30mms.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "540778773287-jc15nc33l6eldh9hnq5739bctsun4m9n.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.cadastroPorVoz"
+              }
+            }
+          ]
         }
       }
     }
