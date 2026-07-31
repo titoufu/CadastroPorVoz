@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../banco/banco_dados.dart';
 import '../modelos/pessoa.dart';
-import '../servicos/operador_service.dart';
+import '../servicos/autenticacao_service.dart';
 import '../servicos/firestore_service.dart';
 
 class TelaEdicao extends StatefulWidget {
@@ -14,12 +14,13 @@ class TelaEdicao extends StatefulWidget {
 }
 
 class _TelaEdicaoState extends State<TelaEdicao> {
+  late final TextEditingController cadastradoPorController;
+  late final TextEditingController alteradoPorController;
   late final TextEditingController nomeController;
   late final TextEditingController enderecoController;
   late final TextEditingController telefoneController;
   late final TextEditingController observacoesController;
-  final alteradoPorController = TextEditingController();
-  final OperadorService operadorService = OperadorService.instancia;
+
   final FirestoreService firestoreService = FirestoreService.instancia;
 
   bool salvando = false;
@@ -27,6 +28,14 @@ class _TelaEdicaoState extends State<TelaEdicao> {
   @override
   void initState() {
     super.initState();
+
+    cadastradoPorController = TextEditingController(
+      text: widget.pessoa.criadoPor,
+    );
+
+    alteradoPorController = TextEditingController(
+      text: widget.pessoa.alteradoPor ?? '',
+    );
 
     nomeController = TextEditingController(text: widget.pessoa.nome);
 
@@ -37,32 +46,23 @@ class _TelaEdicaoState extends State<TelaEdicao> {
     observacoesController = TextEditingController(
       text: widget.pessoa.observacoes,
     );
-    carregarOperador();
-  }
-
-  Future<void> carregarOperador() async {
-    final nomeOperador = await operadorService.carregarNome();
-
-    if (!mounted) return;
-
-    setState(() {
-      alteradoPorController.text = nomeOperador;
-    });
   }
 
   @override
   void dispose() {
+    cadastradoPorController.dispose();
+    alteradoPorController.dispose();
     nomeController.dispose();
     enderecoController.dispose();
     telefoneController.dispose();
     observacoesController.dispose();
-    alteradoPorController.dispose();
     super.dispose();
   }
 
   Future<void> salvarAlteracoes() async {
     final nome = nomeController.text.trim();
-    final alteradoPor = alteradoPorController.text.trim();
+
+    final alteradoPor = AutenticacaoService.instancia.nomeUsuarioAtual.trim();
 
     if (nome.isEmpty) {
       mostrarMensagem('Informe o nome da pessoa.');
@@ -70,7 +70,7 @@ class _TelaEdicaoState extends State<TelaEdicao> {
     }
 
     if (alteradoPor.isEmpty) {
-      mostrarMensagem('Informe quem está fazendo a alteração.');
+      mostrarMensagem('Não foi possível identificar o usuário conectado.');
       return;
     }
 
@@ -93,6 +93,7 @@ class _TelaEdicaoState extends State<TelaEdicao> {
       );
 
       await BancoDados.instancia.atualizarPessoa(pessoaAtualizada);
+
       await firestoreService.salvarPessoa(pessoaAtualizada);
 
       if (!mounted) return;
@@ -115,16 +116,10 @@ class _TelaEdicaoState extends State<TelaEdicao> {
     }
   }
 
-  void mostrarMensagem(String mensagem) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(mensagem)));
-  }
-
   Future<void> excluirCadastro() async {
     final confirmou = await showDialog<bool>(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Excluir cadastro'),
           content: Text(
@@ -133,11 +128,15 @@ class _TelaEdicaoState extends State<TelaEdicao> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
+              onPressed: () {
+                Navigator.of(dialogContext).pop(false);
+              },
               child: const Text('Cancelar'),
             ),
             FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
+              onPressed: () {
+                Navigator.of(dialogContext).pop(true);
+              },
               child: const Text('Excluir'),
             ),
           ],
@@ -145,16 +144,33 @@ class _TelaEdicaoState extends State<TelaEdicao> {
       },
     );
 
+    if (!mounted) return;
+
     if (confirmou != true || widget.pessoa.id == null) {
       return;
     }
 
-    await BancoDados.instancia.excluirPessoa(widget.pessoa.id!);
-    await firestoreService.excluirPessoa(widget.pessoa.uuid);
+    try {
+      await BancoDados.instancia.excluirPessoa(widget.pessoa.id!);
 
+      await firestoreService.excluirPessoa(widget.pessoa.uuid);
+
+      if (!mounted) return;
+
+      Navigator.of(context).pop(true);
+    } catch (erro) {
+      if (!mounted) return;
+
+      mostrarMensagem('Não foi possível excluir o cadastro: $erro');
+    }
+  }
+
+  void mostrarMensagem(String mensagem) {
     if (!mounted) return;
 
-    Navigator.of(context).pop(true);
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(mensagem)));
   }
 
   @override
@@ -165,7 +181,7 @@ class _TelaEdicaoState extends State<TelaEdicao> {
         actions: [
           IconButton(
             tooltip: 'Excluir cadastro',
-            onPressed: excluirCadastro,
+            onPressed: salvando ? null : excluirCadastro,
             icon: const Icon(Icons.delete_outline),
           ),
         ],
@@ -176,11 +192,21 @@ class _TelaEdicaoState extends State<TelaEdicao> {
           child: Column(
             children: [
               TextField(
+                controller: cadastradoPorController,
+                readOnly: true,
+                decoration: const InputDecoration(
+                  labelText: 'Cadastrado por',
+                  prefixIcon: Icon(Icons.badge_outlined),
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
                 controller: alteradoPorController,
-                textCapitalization: TextCapitalization.words,
+                readOnly: true,
                 decoration: const InputDecoration(
                   labelText: 'Alterado por',
-                  prefixIcon: Icon(Icons.badge),
+                  prefixIcon: Icon(Icons.manage_accounts_outlined),
                   border: OutlineInputBorder(),
                 ),
               ),

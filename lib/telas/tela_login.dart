@@ -11,6 +11,7 @@ class TelaLogin extends StatefulWidget {
 }
 
 class _TelaLoginState extends State<TelaLogin> {
+  final nomeController = TextEditingController();
   final emailController = TextEditingController();
   final senhaController = TextEditingController();
 
@@ -19,6 +20,7 @@ class _TelaLoginState extends State<TelaLogin> {
 
   @override
   void dispose() {
+    nomeController.dispose();
     emailController.dispose();
     senhaController.dispose();
     super.dispose();
@@ -42,6 +44,14 @@ class _TelaLoginState extends State<TelaLogin> {
         email: email,
         senha: senha,
       );
+      final usuario = AutenticacaoService.instancia.usuarioAtual;
+
+      final nomeAtual = usuario?.displayName?.trim() ?? '';
+      final nomeInformado = nomeController.text.trim();
+
+      if (nomeAtual.isEmpty && nomeInformado.isNotEmpty) {
+        await AutenticacaoService.instancia.salvarNomeUsuario(nomeInformado);
+      }
     } on FirebaseAuthException catch (erro) {
       mostrarMensagem(traduzirErro(erro.code));
     } catch (_) {
@@ -56,8 +66,14 @@ class _TelaLoginState extends State<TelaLogin> {
   }
 
   Future<void> criarConta() async {
+    final nome = nomeController.text.trim();
     final email = emailController.text.trim();
     final senha = senhaController.text;
+
+    if (nome.isEmpty) {
+      mostrarMensagem('Informe o nome completo.');
+      return;
+    }
 
     if (email.isEmpty || senha.isEmpty) {
       mostrarMensagem('Informe o e-mail e a senha.');
@@ -78,6 +94,8 @@ class _TelaLoginState extends State<TelaLogin> {
         email: email,
         senha: senha,
       );
+
+      await AutenticacaoService.instancia.salvarNomeUsuario(nome);
 
       mostrarMensagem('Conta criada com sucesso.');
     } on FirebaseAuthException catch (erro) {
@@ -192,6 +210,17 @@ class _TelaLoginState extends State<TelaLogin> {
                     style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 32),
+                  TextField(
+                    controller: nomeController,
+                    enabled: !carregando,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(
+                      labelText: 'Nome completo — para criar conta',
+                      prefixIcon: Icon(Icons.person_outline),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   TextField(
                     controller: emailController,
                     enabled: !carregando,

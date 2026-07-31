@@ -101,7 +101,7 @@ class _TelaCadastroState extends State<TelaCadastro> {
   void initState() {
     super.initState();
 
-    carregarOperador();
+    carregarUsuarioLogado();
     inicializarVoz();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -197,59 +197,68 @@ class _TelaCadastroState extends State<TelaCadastro> {
   }
 
   Future<void> salvarCadastro() async {
-    final nome = nomeController.text.trim();
-    final cadastradoPor = cadastradoPorController.text.trim();
+  final nome = nomeController.text.trim();
 
-    if (nome.isEmpty) {
-      mostrarMensagem('Informe o nome da pessoa.');
-      return;
-    }
+  final usuarioLogado =
+      AutenticacaoService.instancia.nomeUsuarioAtual.trim();
 
-    if (cadastradoPor.isEmpty) {
-      mostrarMensagem('Informe quem está realizando o cadastro.');
-      return;
-    }
+  if (nome.isEmpty) {
+    mostrarMensagem('Informe o nome da pessoa.');
+    return;
+  }
 
-    setState(() {
-      salvando = true;
-    });
+  if (usuarioLogado.isEmpty) {
+    mostrarMensagem(
+      'Não foi possível identificar o usuário conectado.',
+    );
+    return;
+  }
 
-    try {
-      final pessoa = Pessoa(
-        uuid: geradorUuid.v4(),
-        nome: nome,
-        endereco: enderecoController.text.trim(),
-        telefone: telefoneController.text.trim(),
-        observacoes: observacoesController.text.trim(),
-        criadoEm: DateTime.now(),
-        criadoPor: cadastradoPor,
-      );
+  setState(() {
+    salvando = true;
+  });
 
-      await BancoDados.instancia.inserirPessoa(pessoa);
-      await firestoreService.salvarPessoa(pessoa);
-      await operadorService.salvarNome(cadastradoPor);
-      await sincronizarCadastros();
+  try {
+    final pessoa = Pessoa(
+      uuid: geradorUuid.v4(),
+      nome: nome,
+      endereco: enderecoController.text.trim(),
+      telefone: telefoneController.text.trim(),
+      observacoes: observacoesController.text.trim(),
+      criadoEm: DateTime.now(),
+      criadoPor: usuarioLogado,
+    );
 
-      if (!mounted) return;
+    await BancoDados.instancia.inserirPessoa(pessoa);
+    await firestoreService.salvarPessoa(pessoa);
+    await sincronizarCadastros();
 
-      nomeController.clear();
-      enderecoController.clear();
-      telefoneController.clear();
-      observacoesController.clear();
+    if (!mounted) return;
 
-      mostrarMensagem('Cadastro salvo no celular e sincronizado com a nuvem.');
-    } catch (erro) {
-      if (!mounted) return;
+    nomeController.clear();
+    enderecoController.clear();
+    telefoneController.clear();
+    observacoesController.clear();
 
-      mostrarMensagem('Não foi possível salvar o cadastro: $erro');
-    } finally {
-      if (mounted) {
-        setState(() {
-          salvando = false;
-        });
-      }
+    cadastradoPorController.text = usuarioLogado;
+
+    mostrarMensagem(
+      'Cadastro salvo no celular e sincronizado com a nuvem.',
+    );
+  } catch (erro) {
+    if (!mounted) return;
+
+    mostrarMensagem(
+      'Não foi possível salvar o cadastro: $erro',
+    );
+  } finally {
+    if (mounted) {
+      setState(() {
+        salvando = false;
+      });
     }
   }
+}
 
   Future<void> sincronizarCadastros() async {
     if (sincronizando) return;
@@ -430,18 +439,14 @@ class _TelaCadastroState extends State<TelaCadastro> {
           child: Column(
             children: [
               indicadorSincronizacao(),
-
               TextField(
                 controller: cadastradoPorController,
+                readOnly: true,
                 textCapitalization: TextCapitalization.words,
                 decoration: InputDecoration(
                   labelText: 'Cadastrado por',
-                  prefixIcon: const Icon(Icons.badge),
+                  prefixIcon: const Icon(Icons.badge_outlined),
                   border: const OutlineInputBorder(),
-                  suffixIcon: botaoMicrofone(
-                    campo: 'cadastrado por',
-                    controller: cadastradoPorController,
-                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -527,5 +532,10 @@ class _TelaCadastroState extends State<TelaCadastro> {
         ),
       ),
     );
+  }
+
+  void carregarUsuarioLogado() {
+    cadastradoPorController.text =
+        AutenticacaoService.instancia.nomeUsuarioAtual;
   }
 }
