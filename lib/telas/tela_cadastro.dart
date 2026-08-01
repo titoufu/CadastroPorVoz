@@ -9,6 +9,7 @@ import '../servicos/autenticacao_service.dart';
 import '../servicos/firestore_service.dart';
 import '../servicos/operador_service.dart';
 import '../servicos/voz_service.dart';
+import '../util/conversores_voz.dart';
 import 'tela_consulta.dart';
 import 'tela_sobre.dart';
 import 'tela_usuarios.dart';
@@ -470,6 +471,21 @@ class _TelaCadastroState extends State<TelaCadastro> {
 
     setState(() {
       cpfController.value = valorFormatado;
+    });
+  }
+
+  void atualizarTelefonePorVoz(String texto) {
+    final digitos = ConversoresVoz.extrairDigitosFalados(texto);
+
+    if (digitos.isEmpty) return;
+
+    final telefoneFormatado = ConversoresVoz.formatarTelefone(digitos);
+
+    setState(() {
+      telefoneController.value = TextEditingValue(
+        text: telefoneFormatado,
+        selection: TextSelection.collapsed(offset: telefoneFormatado.length),
+      );
     });
   }
 
@@ -1056,6 +1072,7 @@ class _TelaCadastroState extends State<TelaCadastro> {
                         controller: telefoneController,
                         enabled: !salvando,
                         keyboardType: TextInputType.phone,
+                        inputFormatters: const [TelefoneInputFormatter()],
                         decoration: InputDecoration(
                           labelText: 'Telefone',
                           prefixIcon: const Icon(Icons.phone_outlined),
@@ -1064,6 +1081,7 @@ class _TelaCadastroState extends State<TelaCadastro> {
                           suffixIcon: botaoMicrofone(
                             campo: 'telefone',
                             controller: telefoneController,
+                            aoReconhecerTexto: atualizarTelefonePorVoz,
                           ),
                         ),
                       ),
