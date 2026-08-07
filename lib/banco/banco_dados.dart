@@ -16,20 +16,28 @@ class BancoDados {
   }
 
   Future<Database> _abrirBanco() async {
-    final caminhoBanco = join(await getDatabasesPath(), 'cadastro_por_voz.db');
+    final caminhoBanco = join(
+      await getDatabasesPath(),
+      'cadastro_por_voz.db',
+    );
 
     return openDatabase(
       caminhoBanco,
 
-      // Versão 3: acrescenta CPF, data de nascimento e exclusão lógica.
-      // Como os registros atuais são apenas testes, a atualização recria
-      // a tabela em vez de migrar os dados antigos.
-      version: 3,
+      // Versão 5:
+      // - acrescenta o estado ativo/inativo;
+      // - mantém a exclusão lógica separada;
+      // - registra a data da exclusão;
+      // - mantém o UID do criador.
+      //
+      // Como o banco está vazio, a atualização recria a tabela
+      // em vez de migrar registros anteriores.
+      version: 5,
 
       onCreate: _criarEstrutura,
 
       onUpgrade: (db, versaoAntiga, versaoNova) async {
-        if (versaoAntiga < 3) {
+        if (versaoAntiga < 5) {
           await db.execute('DROP TABLE IF EXISTS pessoas');
           await _criarEstrutura(db, versaoNova);
         }
@@ -37,7 +45,10 @@ class BancoDados {
     );
   }
 
-  static Future<void> _criarEstrutura(Database db, int version) async {
+  static Future<void> _criarEstrutura(
+    Database db,
+    int version,
+  ) async {
     await db.execute('''
       CREATE TABLE pessoas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -50,9 +61,12 @@ class BancoDados {
         observacoes TEXT NOT NULL,
         criado_em TEXT NOT NULL,
         criado_por TEXT NOT NULL,
+        criado_por_uid TEXT NOT NULL,
         alterado_em TEXT,
         alterado_por TEXT,
-        excluido INTEGER NOT NULL DEFAULT 0
+        ativo INTEGER NOT NULL DEFAULT 1,
+        excluido INTEGER NOT NULL DEFAULT 0,
+        excluido_em TEXT
       )
     ''');
 
@@ -70,6 +84,16 @@ class BancoDados {
       CREATE INDEX idx_pessoas_nome_nascimento
       ON pessoas(nome COLLATE NOCASE, data_nascimento)
     ''');
+
+    await db.execute('''
+      CREATE INDEX idx_pessoas_situacao
+      ON pessoas(ativo, excluido)
+    ''');
+
+    await db.execute('''
+      CREATE INDEX idx_pessoas_excluido_em
+      ON pessoas(excluido_em)
+    ''');
   }
 
   Future<int> inserirPessoa(Pessoa pessoa) async {
@@ -82,18 +106,35 @@ class BancoDados {
     );
   }
 
+  /// Retorna somente cadastros ativos e não excluídos.
   Future<List<Pessoa>> listarPessoas() async {
     final db = await banco;
 
     final registros = await db.query(
       'pessoas',
-      where: 'excluido = 0',
+      where: 'ativo = 1 AND excluido = 0',
       orderBy: 'nome COLLATE NOCASE',
     );
 
     return registros.map(Pessoa.fromMap).toList();
   }
 
+  /// Retorna somente cadastros inativos e não excluídos.
+  Future<List<Pessoa>> listarPessoasInativas() async {
+    final db = await banco;
+
+    final registros = await db.query(
+      'pessoas',
+      where: 'ativo = 0 AND excluido = 0',
+      orderBy: 'nome COLLATE NOCASE',
+    );
+
+    return registros.map(Pessoa.fromMap).toList();
+  }
+
+  /// Retorna todos os registros, inclusive os excluídos.
+  ///
+  /// É usado por rotinas de sincronização e verificação interna.
   Future<List<Pessoa>> listarTodasPessoas() async {
     final db = await banco;
 
@@ -105,13 +146,14 @@ class BancoDados {
     return registros.map(Pessoa.fromMap).toList();
   }
 
-  Future<List<Pessoa>> listarPessoasInativas() async {
+  /// Retorna somente os registros marcados como excluídos.
+  Future<List<Pessoa>> listarPessoasExcluidas() async {
     final db = await banco;
 
     final registros = await db.query(
       'pessoas',
       where: 'excluido = 1',
-      orderBy: 'nome COLLATE NOCASE',
+      orderBy: 'excluido_em',
     );
 
     return registros.map(Pessoa.fromMap).toList();
@@ -134,6 +176,23 @@ class BancoDados {
     return Pessoa.fromMap(registros.first);
   }
 
+  Future<Pessoa?> buscarPessoaPorUuid(String uuid) async {
+    final db = await banco;
+
+    final registros = await db.query(
+      'pessoas',
+      where: 'uuid = ?',
+      whereArgs: [uuid],
+      limit: 1,
+    );
+
+    if (registros.isEmpty) {
+      return null;
+    }
+
+    return Pessoa.fromMap(registros.first);
+  }
+
   Future<int> atualizarPessoa(Pessoa pessoa) async {
     if (pessoa.id == null) {
       throw ArgumentError(
@@ -143,29 +202,59 @@ class BancoDados {
 
     final db = await banco;
 
-    final dados = Map<String, Object?>.from(pessoa.toMap())..remove('id');
+    final dados = Map<String, Object?>.from(
+      pessoa.toMap(),
+    )..remove('id');
 
-    return db.update('pessoas', dados, where: 'id = ?', whereArgs: [pessoa.id]);
+    return db.update(
+      'pessoas',
+      dados,
+      where: 'id = ?',
+      whereArgs: [pessoa.id],
+    );
   }
 
-  Future<int> excluirPessoa(int id) async {
+  /// Encerra a demanda atual sem excluir o cadastro.
+  Future<int> inativarPessoa(int id) async {
     final db = await banco;
 
     return db.update(
       'pessoas',
-      {'excluido': 1},
-      where: 'id = ?',
+      {'ativo': 0},
+      where: 'id = ? AND excluido = 0',
       whereArgs: [id],
     );
   }
 
+  /// Reabre o cadastro para uma nova demanda.
   Future<int> reativarPessoa(int id) async {
     final db = await banco;
 
     return db.update(
       'pessoas',
-      {'excluido': 0},
-      where: 'id = ?',
+      {'ativo': 1},
+      where: 'id = ? AND excluido = 0',
+      whereArgs: [id],
+    );
+  }
+
+  /// Marca o cadastro como excluído.
+  ///
+  /// Registros excluídos não podem ser reativados.
+  Future<int> excluirPessoa(
+    int id, {
+    required DateTime excluidoEm,
+  }) async {
+    final db = await banco;
+
+    return db.update(
+      'pessoas',
+      {
+        'ativo': 0,
+        'excluido': 1,
+        'excluido_em': excluidoEm.toIso8601String(),
+      },
+      where: 'id = ? AND excluido = 0',
       whereArgs: [id],
     );
   }
@@ -182,7 +271,9 @@ class BancoDados {
         limit: 1,
       );
 
-      final dados = Map<String, Object?>.from(pessoa.toMap())..remove('id');
+      final dados = Map<String, Object?>.from(
+        pessoa.toMap(),
+      )..remove('id');
 
       if (registros.isEmpty) {
         await transacao.insert(
@@ -201,14 +292,40 @@ class BancoDados {
     });
   }
 
-  Future<int> excluirPorUuid(String uuid) async {
+  /// Aplica localmente uma exclusão recebida do Firestore.
+  Future<int> excluirPorUuid(
+    String uuid, {
+    required DateTime excluidoEm,
+  }) async {
     final db = await banco;
 
     return db.update(
       'pessoas',
-      {'excluido': 1},
+      {
+        'ativo': 0,
+        'excluido': 1,
+        'excluido_em': excluidoEm.toIso8601String(),
+      },
       where: 'uuid = ?',
       whereArgs: [uuid],
+    );
+  }
+
+  /// Remove fisicamente do SQLite registros excluídos há mais de 30 dias.
+  ///
+  /// Este método deverá ser executado somente depois que a rotina de
+  /// sincronização confirmar a limpeza correspondente no Firestore.
+  Future<int> removerExcluidosAnterioresA(DateTime limite) async {
+    final db = await banco;
+
+    return db.delete(
+      'pessoas',
+      where: '''
+        excluido = 1
+        AND excluido_em IS NOT NULL
+        AND excluido_em <= ?
+      ''',
+      whereArgs: [limite.toIso8601String()],
     );
   }
 }

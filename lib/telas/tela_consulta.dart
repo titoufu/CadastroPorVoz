@@ -2,13 +2,19 @@ import 'package:flutter/material.dart';
 
 import '../banco/banco_dados.dart';
 import '../modelos/pessoa.dart';
+import '../modelos/usuario_autorizado.dart';
 import '../servicos/exportacao_service.dart';
 import 'tela_edicao.dart';
 
 enum _FiltroCadastros { ativos, inativos }
 
 class TelaConsulta extends StatefulWidget {
-  const TelaConsulta({super.key});
+  final UsuarioAutorizado usuarioAutorizado;
+
+  const TelaConsulta({
+    super.key,
+    required this.usuarioAutorizado,
+  });
 
   @override
   State<TelaConsulta> createState() => _TelaConsultaState();
@@ -234,7 +240,10 @@ class _TelaConsultaState extends State<TelaConsulta> {
         onTap: () async {
           final cadastroAlterado = await Navigator.of(context).push<bool>(
             MaterialPageRoute(
-              builder: (context) => TelaEdicao(pessoa: pessoa),
+              builder: (context) => TelaEdicao(
+                pessoa: pessoa,
+                usuarioAutorizado: widget.usuarioAutorizado,
+              ),
             ),
           );
 
@@ -277,7 +286,7 @@ class _TelaConsultaState extends State<TelaConsulta> {
                             ),
                           ),
                         ),
-                        if (pessoa.excluido) ...[
+                        if (!pessoa.ativo) ...[
                           const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(

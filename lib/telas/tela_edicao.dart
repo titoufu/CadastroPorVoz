@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../banco/banco_dados.dart';
 import '../modelos/pessoa.dart';
-import '../servicos/autenticacao_service.dart';
+import '../modelos/usuario_autorizado.dart';
 import '../servicos/controlador_voz.dart';
 import '../servicos/firestore_service.dart';
 import '../util/conversores_voz.dart';
@@ -11,10 +11,20 @@ import '../widgets/botao_microfone_voz.dart';
 
 class TelaEdicao extends StatefulWidget {
   final Pessoa pessoa;
+  final UsuarioAutorizado usuarioAutorizado;
 
-  const TelaEdicao({super.key, required this.pessoa});
+  const TelaEdicao({
+    super.key,
+    required this.pessoa,
+    required this.usuarioAutorizado,
+  });
 
-  bool get estaInativo => pessoa.excluido;
+  bool get estaInativo => !pessoa.ativo && !pessoa.excluido;
+
+  bool get podeExcluir {
+    return usuarioAutorizado.administrador ||
+        usuarioAutorizado.uid == pessoa.criadoPorUid;
+  }
 
   @override
   State<TelaEdicao> createState() => _TelaEdicaoState();
@@ -51,9 +61,7 @@ class _TelaEdicaoState extends State<TelaEdicao> {
 
     nomeController = TextEditingController(text: widget.pessoa.nome);
 
-    cpfController = TextEditingController(
-      text: formatarCpf(widget.pessoa.cpf),
-    );
+    cpfController = TextEditingController(text: formatarCpf(widget.pessoa.cpf));
 
     dataNascimentoSelecionada = widget.pessoa.dataNascimento;
     dataNascimentoController = TextEditingController(
@@ -72,11 +80,7 @@ class _TelaEdicaoState extends State<TelaEdicao> {
 
     novaObservacaoController = TextEditingController();
 
-    unawaited(
-      controladorVoz.preparar(
-        aoErro: mostrarMensagem,
-      ),
-    );
+    unawaited(controladorVoz.preparar(aoErro: mostrarMensagem));
   }
 
   @override
@@ -155,7 +159,7 @@ class _TelaEdicaoState extends State<TelaEdicao> {
     final nome = nomeController.text.trim();
     final cpf = somenteDigitos(cpfController.text);
 
-    final alteradoPor = AutenticacaoService.instancia.nomeUsuarioAtual.trim();
+    final alteradoPor = widget.usuarioAutorizado.nome.trim();
 
     if (nome.isEmpty) {
       mostrarMensagem('Informe o nome da pessoa.');
@@ -206,14 +210,16 @@ class _TelaEdicaoState extends State<TelaEdicao> {
         observacoes: historicoAtualizado,
         criadoEm: widget.pessoa.criadoEm,
         criadoPor: widget.pessoa.criadoPor,
+        criadoPorUid: widget.pessoa.criadoPorUid,
         alteradoEm: alteradoEm,
         alteradoPor: alteradoPor,
-        excluido: widget.estaInativo,
+        ativo: widget.pessoa.ativo,
+        excluido: widget.pessoa.excluido,
+        excluidoEm: widget.pessoa.excluidoEm,
       );
 
-      await BancoDados.instancia.atualizarPessoa(pessoaAtualizada);
-
       await firestoreService.salvarPessoa(pessoaAtualizada);
+      await BancoDados.instancia.atualizarPessoa(pessoaAtualizada);
 
       if (!mounted) return;
 
@@ -272,8 +278,7 @@ class _TelaEdicaoState extends State<TelaEdicao> {
     }
 
     try {
-      final alteradoPor =
-          AutenticacaoService.instancia.nomeUsuarioAtual.trim();
+      final alteradoPor = widget.usuarioAutorizado.nome.trim();
 
       if (alteradoPor.isEmpty) {
         mostrarMensagem('Não foi possível identificar o usuário conectado.');
@@ -284,25 +289,14 @@ class _TelaEdicaoState extends State<TelaEdicao> {
         salvando = true;
       });
 
-      final pessoaInativada = Pessoa(
-        id: widget.pessoa.id,
-        uuid: widget.pessoa.uuid,
-        nome: widget.pessoa.nome,
-        cpf: widget.pessoa.cpf,
-        dataNascimento: widget.pessoa.dataNascimento,
-        endereco: widget.pessoa.endereco,
-        telefone: widget.pessoa.telefone,
-        observacoes: widget.pessoa.observacoes,
-        criadoEm: widget.pessoa.criadoEm,
-        criadoPor: widget.pessoa.criadoPor,
+      final pessoaInativada = widget.pessoa.copyWith(
+        ativo: false,
         alteradoEm: DateTime.now(),
         alteradoPor: alteradoPor,
-        excluido: true,
       );
 
-      await BancoDados.instancia.atualizarPessoa(pessoaInativada);
-
       await firestoreService.salvarPessoa(pessoaInativada);
+      await BancoDados.instancia.atualizarPessoa(pessoaInativada);
 
       if (!mounted) return;
 
@@ -355,8 +349,7 @@ class _TelaEdicaoState extends State<TelaEdicao> {
       return;
     }
 
-    final alteradoPor =
-        AutenticacaoService.instancia.nomeUsuarioAtual.trim();
+    final alteradoPor = widget.usuarioAutorizado.nome.trim();
 
     if (alteradoPor.isEmpty) {
       mostrarMensagem('Não foi possível identificar o usuário conectado.');
@@ -368,24 +361,14 @@ class _TelaEdicaoState extends State<TelaEdicao> {
     });
 
     try {
-      final pessoaReativada = Pessoa(
-        id: widget.pessoa.id,
-        uuid: widget.pessoa.uuid,
-        nome: widget.pessoa.nome,
-        cpf: widget.pessoa.cpf,
-        dataNascimento: widget.pessoa.dataNascimento,
-        endereco: widget.pessoa.endereco,
-        telefone: widget.pessoa.telefone,
-        observacoes: widget.pessoa.observacoes,
-        criadoEm: widget.pessoa.criadoEm,
-        criadoPor: widget.pessoa.criadoPor,
+      final pessoaReativada = widget.pessoa.copyWith(
+        ativo: true,
         alteradoEm: DateTime.now(),
         alteradoPor: alteradoPor,
-        excluido: false,
       );
 
-      await BancoDados.instancia.atualizarPessoa(pessoaReativada);
       await firestoreService.salvarPessoa(pessoaReativada);
+      await BancoDados.instancia.atualizarPessoa(pessoaReativada);
 
       if (!mounted) return;
 
@@ -398,6 +381,88 @@ class _TelaEdicaoState extends State<TelaEdicao> {
       if (!mounted) return;
 
       mostrarMensagem('Não foi possível reativar o cadastro: $erro');
+    } finally {
+      if (mounted) {
+        setState(() {
+          salvando = false;
+        });
+      }
+    }
+  }
+
+  Future<void> excluirCadastro() async {
+    if (!widget.podeExcluir || widget.pessoa.id == null) {
+      mostrarMensagem('Você não possui permissão para excluir este cadastro.');
+      return;
+    }
+
+    final confirmou = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          icon: const Icon(Icons.delete_forever_outlined),
+          title: const Text('Excluir cadastro'),
+          content: Text(
+            'Tem certeza de que deseja excluir definitivamente o cadastro de '
+            '${widget.pessoa.nome}?\n\n'
+            'Esta ação é diferente de inativar. O registro será removido das '
+            'listas de ativos e inativos e não poderá ser reativado.\n\n'
+            'A exclusão exige conexão com a internet.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.red.shade700,
+              ),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              icon: const Icon(Icons.delete_forever_outlined),
+              label: const Text('Excluir definitivamente'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted || confirmou != true) return;
+
+    setState(() {
+      salvando = true;
+    });
+
+    try {
+      final excluidoEm = await firestoreService.excluirPessoa(
+        widget.pessoa.uuid,
+      );
+
+      final alterados = await BancoDados.instancia.excluirPessoa(
+        widget.pessoa.id!,
+        excluidoEm: excluidoEm,
+      );
+
+      if (alterados == 0) {
+        throw StateError(
+          'O cadastro local não pôde ser marcado como excluído.',
+        );
+      }
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cadastro excluído com sucesso.')),
+      );
+
+      Navigator.of(context).pop(true);
+    } catch (erro) {
+      if (!mounted) return;
+
+      mostrarMensagem(
+        'Não foi possível excluir o cadastro. Verifique a conexão e tente '
+        'novamente. Detalhes: $erro',
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -429,7 +494,9 @@ class _TelaEdicaoState extends State<TelaEdicao> {
       }
     }
 
-    final outrasPessoas = pessoasPorUuid.values.toList();
+    final outrasPessoas = pessoasPorUuid.values
+        .where((pessoa) => !pessoa.excluido)
+        .toList();
 
     if (cpf.isNotEmpty) {
       final mesmoCpf = outrasPessoas.where((pessoa) {
@@ -469,7 +536,7 @@ class _TelaEdicaoState extends State<TelaEdicao> {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) {
-        final situacao = pessoa.excluido ? 'inativo' : 'ativo';
+        final situacao = pessoa.ativo ? 'ativo' : 'inativo';
 
         return AlertDialog(
           icon: const Icon(Icons.content_copy_outlined),
@@ -494,7 +561,7 @@ class _TelaEdicaoState extends State<TelaEdicao> {
     return showDialog<bool>(
       context: context,
       builder: (dialogContext) {
-        final situacao = pessoa.excluido ? 'inativo' : 'ativo';
+        final situacao = pessoa.ativo ? 'ativo' : 'inativo';
 
         return AlertDialog(
           icon: const Icon(Icons.warning_amber_rounded),
@@ -521,7 +588,8 @@ class _TelaEdicaoState extends State<TelaEdicao> {
 
   Future<void> selecionarDataNascimento() async {
     final hoje = DateTime.now();
-    final dataInicial = dataNascimentoSelecionada ??
+    final dataInicial =
+        dataNascimentoSelecionada ??
         DateTime(hoje.year - 30, hoje.month, hoje.day);
 
     final data = await showDatePicker(
@@ -611,7 +679,11 @@ class _TelaEdicaoState extends State<TelaEdicao> {
     final nascimento = pessoa.dataNascimento == null
         ? 'não informado'
         : formatarData(pessoa.dataNascimento!);
-    final situacao = pessoa.excluido ? 'Inativo' : 'Ativo';
+    final situacao = pessoa.excluido
+        ? 'Excluído'
+        : pessoa.ativo
+        ? 'Ativo'
+        : 'Inativo';
 
     return '${pessoa.nome}\n'
         'Nascimento: $nascimento\n'
@@ -792,20 +864,61 @@ class _TelaEdicaoState extends State<TelaEdicao> {
           style: const TextStyle(fontWeight: FontWeight.w700),
         ),
         actions: [
-          IconButton(
-            tooltip: widget.estaInativo
-                ? 'Reativar cadastro'
-                : 'Inativar cadastro',
-            onPressed: salvando
-                ? null
-                : widget.estaInativo
-                    ? reativarCadastro
-                    : inativarCadastro,
-            icon: Icon(
-              widget.estaInativo
-                  ? Icons.person_add_alt_1_outlined
-                  : Icons.person_off_outlined,
-            ),
+          PopupMenuButton<String>(
+            tooltip: 'Mais ações',
+            enabled: !salvando,
+            onSelected: (opcao) {
+              switch (opcao) {
+                case 'inativar':
+                  inativarCadastro();
+                  break;
+
+                case 'reativar':
+                  reativarCadastro();
+                  break;
+
+                case 'excluir':
+                  excluirCadastro();
+                  break;
+              }
+            },
+            itemBuilder: (context) {
+              return [
+                PopupMenuItem<String>(
+                  value: widget.estaInativo ? 'reativar' : 'inativar',
+                  child: ListTile(
+                    leading: Icon(
+                      widget.estaInativo
+                          ? Icons.person_add_alt_1_outlined
+                          : Icons.person_off_outlined,
+                      color: azulInstitucional,
+                    ),
+                    title: Text(
+                      widget.estaInativo
+                          ? 'Reativar cadastro'
+                          : 'Inativar cadastro',
+                    ),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+
+                if (widget.podeExcluir) ...[
+                  const PopupMenuDivider(),
+
+                  const PopupMenuItem<String>(
+                    value: 'excluir',
+                    child: ListTile(
+                      leading: Icon(
+                        Icons.delete_forever_outlined,
+                        color: Colors.red,
+                      ),
+                      title: Text('Excluir cadastro'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                ],
+              ];
+            },
           ),
         ],
       ),
@@ -950,10 +1063,8 @@ class _TelaEdicaoState extends State<TelaEdicao> {
                                 campo: 'nome',
                                 habilitado: !salvando,
                                 controlador: controladorVoz,
-                                aoReconhecer: (texto) => atualizarTextoPorVoz(
-                                  nomeController,
-                                  texto,
-                                ),
+                                aoReconhecer: (texto) =>
+                                    atualizarTextoPorVoz(nomeController, texto),
                                 aoErro: mostrarMensagem,
                               ),
                             ),
@@ -1011,8 +1122,7 @@ class _TelaEdicaoState extends State<TelaEdicao> {
                                     campo: 'data de nascimento',
                                     habilitado: !salvando,
                                     controlador: controladorVoz,
-                                    aoReconhecer:
-                                        atualizarDataNascimentoPorVoz,
+                                    aoReconhecer: atualizarDataNascimentoPorVoz,
                                     aoNaoReconhecer: () => mostrarMensagem(
                                       'Não entendi a data. Diga, por exemplo, '
                                       '31 de julho de 1960.',

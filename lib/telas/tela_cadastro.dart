@@ -7,7 +7,6 @@ import '../modelos/pessoa.dart';
 import '../modelos/usuario_autorizado.dart';
 import '../servicos/autenticacao_service.dart';
 import '../servicos/firestore_service.dart';
-import '../servicos/operador_service.dart';
 import '../servicos/voz_service.dart';
 import '../util/conversores_voz.dart';
 import 'tela_consulta.dart';
@@ -33,7 +32,6 @@ class _TelaCadastroState extends State<TelaCadastro> {
   final observacoesController = TextEditingController();
 
   final VozService vozService = VozService.instancia;
-  final OperadorService operadorService = OperadorService.instancia;
   final FirestoreService firestoreService = FirestoreService.instancia;
   final Uuid geradorUuid = const Uuid();
 
@@ -56,16 +54,6 @@ class _TelaCadastroState extends State<TelaCadastro> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       sincronizarCadastros();
-    });
-  }
-
-  Future<void> carregarOperador() async {
-    final nomeOperador = await operadorService.carregarNome();
-
-    if (!mounted) return;
-
-    setState(() {
-      cadastradoPorController.text = nomeOperador;
     });
   }
 
@@ -156,7 +144,7 @@ class _TelaCadastroState extends State<TelaCadastro> {
     final nome = nomeController.text.trim();
     final cpf = somenteDigitos(cpfController.text);
 
-    final usuarioLogado = AutenticacaoService.instancia.nomeUsuarioAtual.trim();
+    final usuarioLogado = widget.usuarioAutorizado.nome.trim();
 
     if (nome.isEmpty) {
       mostrarMensagem('Informe o nome da pessoa.');
@@ -205,6 +193,10 @@ class _TelaCadastroState extends State<TelaCadastro> {
         ),
         criadoEm: criadoEm,
         criadoPor: usuarioLogado,
+        criadoPorUid: widget.usuarioAutorizado.uid,
+        ativo: true,
+        excluido: false,
+        excluidoEm: null,
       );
 
       await BancoDados.instancia.inserirPessoa(pessoa);
@@ -259,24 +251,27 @@ class _TelaCadastroState extends State<TelaCadastro> {
       pessoasPorUuid[pessoa.uuid] = pessoa;
     }
 
-    final pessoas = pessoasPorUuid.values.toList();
+    // Registros excluídos não participam da verificação de duplicidade.
+    final pessoasValidas = pessoasPorUuid.values
+        .where((pessoa) => !pessoa.excluido)
+        .toList();
 
     if (cpf.isNotEmpty) {
-      final mesmoCpf = pessoas.where((pessoa) {
+      final mesmoCpf = pessoasValidas.where((pessoa) {
         return somenteDigitos(pessoa.cpf) == cpf;
       }).toList();
 
       if (mesmoCpf.isNotEmpty) {
         final existente = mesmoCpf.first;
 
-        if (existente.excluido) {
+        if (existente.ativo) {
+          await mostrarDialogoCpfAtivo(existente);
+        } else {
           final reativar = await mostrarDialogoCpfInativo(existente);
 
           if (reativar == true) {
             await reativarCadastro(existente, usuarioLogado);
           }
-        } else {
-          await mostrarDialogoCpfAtivo(existente);
         }
 
         return false;
@@ -286,7 +281,7 @@ class _TelaCadastroState extends State<TelaCadastro> {
     if (dataNascimento != null) {
       final nomeNormalizado = normalizarTexto(nome);
 
-      final mesmoNomeENascimento = pessoas.where((pessoa) {
+      final mesmoNomeENascimento = pessoasValidas.where((pessoa) {
         return normalizarTexto(pessoa.nome) == nomeNormalizado &&
             mesmaData(pessoa.dataNascimento, dataNascimento);
       }).toList();
@@ -359,7 +354,7 @@ class _TelaCadastroState extends State<TelaCadastro> {
     return showDialog<bool>(
       context: context,
       builder: (dialogContext) {
-        final situacao = pessoa.excluido ? 'inativo' : 'ativo';
+        final situacao = pessoa.ativo ? 'ativo' : 'inativo';
 
         return AlertDialog(
           icon: const Icon(Icons.warning_amber_rounded),
@@ -388,29 +383,21 @@ class _TelaCadastroState extends State<TelaCadastro> {
     Pessoa pessoa,
     String usuarioLogado,
   ) async {
-    final pessoaReativada = Pessoa(
-      id: pessoa.id,
-      uuid: pessoa.uuid,
-      nome: pessoa.nome,
-      cpf: pessoa.cpf,
-      dataNascimento: pessoa.dataNascimento,
-      endereco: pessoa.endereco,
-      telefone: pessoa.telefone,
-      observacoes: pessoa.observacoes,
-      criadoEm: pessoa.criadoEm,
-      criadoPor: pessoa.criadoPor,
+    final pessoaReativada = pessoa.copyWith(
+      ativo: true,
       alteradoEm: DateTime.now(),
       alteradoPor: usuarioLogado,
-      excluido: false,
     );
 
-    await BancoDados.instancia.salvarOuAtualizarPorUuid(pessoaReativada);
     await firestoreService.salvarPessoa(pessoaReativada);
+    await BancoDados.instancia.salvarOuAtualizarPorUuid(pessoaReativada);
 
     if (!mounted) return;
 
     limparFormulario();
-    mostrarMensagem('Cadastro reativado com sucesso. O histórico foi preservado.');
+    mostrarMensagem(
+      'Cadastro reativado com sucesso. O histórico foi preservado.',
+    );
   }
 
   void limparFormulario() {
@@ -581,7 +568,11 @@ class _TelaCadastroState extends State<TelaCadastro> {
     final nascimento = pessoa.dataNascimento == null
         ? 'não informado'
         : formatarData(pessoa.dataNascimento!);
-    final situacao = pessoa.excluido ? 'Inativo' : 'Ativo';
+    final situacao = pessoa.excluido
+        ? 'Excluído'
+        : pessoa.ativo
+            ? 'Ativo'
+            : 'Inativo';
 
     return '${pessoa.nome}\n'
         'Nascimento: $nascimento\n'
@@ -662,16 +653,23 @@ class _TelaCadastroState extends State<TelaCadastro> {
     });
 
     try {
-      final pessoas = await firestoreService.listarPessoasAtivas();
+      final pessoasNaoExcluidas =
+          await firestoreService.listarPessoasNaoExcluidas();
+      final pessoasExcluidas =
+          await firestoreService.listarPessoasExcluidas();
 
-      final uuidsExcluidos = await firestoreService.listarUuidsExcluidos();
-
-      for (final pessoa in pessoas) {
+      for (final pessoa in pessoasNaoExcluidas) {
         await BancoDados.instancia.salvarOuAtualizarPorUuid(pessoa);
       }
 
-      for (final uuid in uuidsExcluidos) {
-        await BancoDados.instancia.excluirPorUuid(uuid);
+      for (final pessoa in pessoasExcluidas) {
+        final excluidoEm =
+            pessoa.excluidoEm ?? pessoa.alteradoEm ?? DateTime.now();
+
+        await BancoDados.instancia.excluirPorUuid(
+          pessoa.uuid,
+          excluidoEm: excluidoEm,
+        );
       }
 
       if (!mounted) return;
@@ -681,8 +679,8 @@ class _TelaCadastroState extends State<TelaCadastro> {
       });
 
       mostrarMensagem(
-        '${pessoas.length} cadastro(s) sincronizado(s) e '
-        '${uuidsExcluidos.length} exclusão(ões) aplicada(s).',
+        '${pessoasNaoExcluidas.length} cadastro(s) sincronizado(s) e '
+        '${pessoasExcluidas.length} exclusão(ões) aplicada(s).',
       );
     } catch (erro) {
       if (!mounted) return;
@@ -819,7 +817,11 @@ class _TelaCadastroState extends State<TelaCadastro> {
               if (!context.mounted) return;
 
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => const TelaConsulta()),
+                MaterialPageRoute(
+                  builder: (context) => TelaConsulta(
+                    usuarioAutorizado: widget.usuarioAutorizado,
+                  ),
+                ),
               );
             },
           ),
@@ -1144,8 +1146,7 @@ class _TelaCadastroState extends State<TelaCadastro> {
   }
 
   void carregarUsuarioLogado() {
-    cadastradoPorController.text =
-        AutenticacaoService.instancia.nomeUsuarioAtual;
+    cadastradoPorController.text = widget.usuarioAutorizado.nome;
   }
 }
 
